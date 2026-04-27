@@ -70,21 +70,21 @@ VishwaVani AI is a multilingual AI-powered platform that enables users to transl
 ### Steps
 
 1. **Clone the repository**
-```bash
+
 git clone https://github.com/yourusername/vishwavani-ai.git
 cd vishwavani-ai
 
 2. Install dependencies
-```bash
+
 npm install
 
 3.Set up environment variables
-```bash
+
 VITE_GOOGLE_TRANSLATE_API_KEY=your_google_cloud_api_key
 VITE_GEMINI_API_KEY=your_gemini_api_key
 
-Run the development server
-```bash
+4.Run the development server
+
 npm run dev
 
 
