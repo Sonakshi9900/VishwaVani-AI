@@ -49,7 +49,7 @@ const HomePage = () => {
 
   // Launch App function - redirect to your existing dashboard
   const launchApp = () => {
-    window.location.href = 'http://localhost:5173/dashboard';
+    window.location.href = 'http://vishwa-vani-ai-jgeh.vercel.app/Dashboard';
   };
 
   return (
