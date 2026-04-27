@@ -8,7 +8,7 @@ import { exportProfessionalPDF } from "../utils/pdfExport.js";
 import { VoiceOutput } from '../components/VoiceAssistant.jsx';
 
 const INDIAN_LANGUAGES = ["Hindi", "Bengali", "Telugu", "Marathi", "Tamil", "Urdu", "Kannada", "English", "Bhojpuri", "Gujarati", "Malayalam", "Punjabi"];
-const BACKEND_URL = "https://vishwavani-ai.onrender.com";
+const BACKEND_URL = "https://vishwavani-ai-0oz9.onrender.com";
 
 export default function Dashboard() {
     const [file, setFile] = useState(null);
