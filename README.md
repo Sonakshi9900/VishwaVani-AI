@@ -74,6 +74,7 @@ VishwaVani AI is a multilingual AI-powered platform that enables users to transl
 git clone https://github.com/yourusername/vishwavani-ai.git
 cd vishwavani-ai
 
+### Steps
 
 1. **Clone the repository**
 ```bash
