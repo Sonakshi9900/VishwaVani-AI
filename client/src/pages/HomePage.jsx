@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './homePage.css';
+import './HomePage.css';
 import { 
   FaLanguage, FaFileAlt, FaHeadphones, FaRobot, 
   FaUpload, FaGlobe, FaArrowRight, FaCheckCircle,
