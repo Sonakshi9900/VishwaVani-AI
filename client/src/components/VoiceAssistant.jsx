@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Volume2, Square, Loader2 } from 'lucide-react';
 
-// Language Map with specific Regional BCP-47 codes
+// Language Map - Bhojpuri added
 const LANGUAGE_CODES = {
     'Hindi': 'hi-IN',
     'English': 'en-US',
@@ -14,7 +14,7 @@ const LANGUAGE_CODES = {
     'Malayalam': 'ml-IN',
     'Punjabi': 'pa-IN',
     'Urdu': 'ur-PK',
-    'Sanskrit': 'sa-IN'
+    'Bhojpuri': 'hi-IN' // Standard browsers engine Bhojpuri ko Hindi base par behtar samajhte hain
 };
 
 // ========== VOICE INPUT COMPONENT ==========
@@ -34,16 +34,14 @@ export const VoiceInput = ({ onTranscript, isListening, setIsListening, disabled
         recognition.continuous = false;
         recognition.interimResults = true;
         
-        // Desktop support ke liye language fallback
-        const langCode = LANGUAGE_CODES[selectedLanguage] || 'hi-IN';
-        recognition.lang = langCode;
+        // Bhojpuri ke liye hi-IN fallback behtar results deta hai browser recognition mein
+        recognition.lang = LANGUAGE_CODES[selectedLanguage] || 'hi-IN';
 
         recognition.onresult = (event) => {
             let finalTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscript += transcript;
+                    finalTranscript += event.results[i][0].transcript;
                 }
             }
             if (finalTranscript) {
@@ -93,12 +91,11 @@ export const VoiceInput = ({ onTranscript, isListening, setIsListening, disabled
     );
 };
 
-// ========== VOICE OUTPUT COMPONENT (Updated for Desktop Fix) ==========
+// ========== VOICE OUTPUT COMPONENT ==========
 export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [voices, setVoices] = useState([]);
     const [supported, setSupported] = useState(true);
-    const utteranceRef = useRef(null);
 
     useEffect(() => {
         if (!window.speechSynthesis) {
@@ -107,16 +104,14 @@ export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
         }
 
         const loadVoices = () => {
-            let availableVoices = window.speechSynthesis.getVoices();
-            // Desktop par agar list khali hai toh retry mechanism
-            if (availableVoices.length === 0) {
-                availableVoices = window.speechSynthesis.getVoices();
+            const availableVoices = window.speechSynthesis.getVoices();
+            if (availableVoices.length > 0) {
+                setVoices(availableVoices);
             }
-            setVoices(availableVoices);
         };
 
-        // Browser voices asynchronously load karta hai
         loadVoices();
+        // Chrome fix: voices asynchronously load hoti hain
         if (window.speechSynthesis.onvoiceschanged !== undefined) {
             window.speechSynthesis.onvoiceschanged = loadVoices;
         }
@@ -128,47 +123,37 @@ export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
         const targetCode = LANGUAGE_CODES[langName];
         if (!targetCode || voices.length === 0) return null;
 
-        // 1. Desktop ke liye best: Natural/Google voices
-        let bestVoice = voices.find(v => 
-            v.lang.toLowerCase().replace('_', '-') === targetCode.toLowerCase() && 
+        // Chrome/Edge/Safari specific logic
+        return voices.find(v => 
+            v.lang.replace('_', '-') === targetCode && 
             (v.name.includes('Google') || v.name.includes('Natural'))
-        );
-        
-        // 2. Exact match
-        if (!bestVoice) {
-            bestVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === targetCode.toLowerCase());
-        }
-
-        // 3. Fallback: Sirf language code (hi, en, bn) match karein
-        if (!bestVoice) {
-            const prefix = targetCode.split('-')[0];
-            bestVoice = voices.find(v => v.lang.startsWith(prefix));
-        }
-
-        return bestVoice;
+        ) || voices.find(v => v.lang.startsWith(targetCode.split('-')[0])) 
+          || voices[0];
     };
 
     const speak = () => {
         if (!text || !supported) return;
 
-        window.speechSynthesis.cancel(); // Reset any existing speech
+        // Crucial fix: cancel and resume for Chrome bug
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.resume();
 
         const utterance = new SpeechSynthesisUtterance(text);
         const voice = getBestVoice(language);
         
         if (voice) {
             utterance.voice = voice;
-            utterance.lang = voice.lang; // Voice ki apni lang use karein
-        } else {
-            utterance.lang = LANGUAGE_CODES[language] || 'en-US';
+            utterance.lang = voice.lang;
         }
 
-        utterance.rate = 0.95;
+        utterance.rate = 0.9;
         utterance.onstart = () => setIsSpeaking(true);
         utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
+        utterance.onerror = (e) => {
+            console.error("SpeechSynthesis Error:", e);
+            setIsSpeaking(false);
+        };
 
-        utteranceRef.current = utterance;
         window.speechSynthesis.speak(utterance);
     };
 
@@ -177,9 +162,10 @@ export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
         setIsSpeaking(false);
     };
 
+    // Auto-speak handling
     useEffect(() => {
         if (autoSpeak && text && voices.length > 0) {
-            const timer = setTimeout(() => speak(), 600);
+            const timer = setTimeout(() => speak(), 500);
             return () => clearTimeout(timer);
         }
     }, [text, autoSpeak, voices.length]);
@@ -192,7 +178,7 @@ export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
             className={`p-2 rounded-full transition-all flex items-center gap-1 ${
                 isSpeaking 
                 ? 'bg-red-500/20 text-red-400' 
-                : 'bg-green-500/20 text-green-400'
+                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
             }`}
         >
             {isSpeaking ? <Square className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
