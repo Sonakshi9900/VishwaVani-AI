@@ -23,7 +23,7 @@ export default function ChatAssistant({ documentContext, selectedLanguage }) {
         setLoading(true);
 
         try {
-            const response = await fetch('https://vishwavani-ai.onrender.com/api/chat', {
+            const response = await fetch('https://vishwavani-ai-0oz9.onrender.com/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
