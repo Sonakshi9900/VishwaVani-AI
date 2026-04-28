@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Volume2, Square, Loader2 } from 'lucide-react';
 
-// Language Map with specific Regional BCP-47 codes for better clarity
+// Language Map with specific Regional BCP-47 codes
 const LANGUAGE_CODES = {
     'Hindi': 'hi-IN',
     'English': 'en-US',
@@ -17,7 +17,7 @@ const LANGUAGE_CODES = {
     'Sanskrit': 'sa-IN'
 };
 
-// ========== VOICE INPUT COMPONENT (Speak to Type) ==========
+// ========== VOICE INPUT COMPONENT ==========
 export const VoiceInput = ({ onTranscript, isListening, setIsListening, disabled, selectedLanguage = 'Hindi' }) => {
     const [supported, setSupported] = useState(true);
     const recognitionRef = useRef(null);
@@ -33,7 +33,10 @@ export const VoiceInput = ({ onTranscript, isListening, setIsListening, disabled
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = true;
-        recognition.lang = LANGUAGE_CODES[selectedLanguage] || 'hi-IN';
+        
+        // Desktop support ke liye language fallback
+        const langCode = LANGUAGE_CODES[selectedLanguage] || 'hi-IN';
+        recognition.lang = langCode;
 
         recognition.onresult = (event) => {
             let finalTranscript = '';
@@ -51,9 +54,6 @@ export const VoiceInput = ({ onTranscript, isListening, setIsListening, disabled
 
         recognition.onerror = (event) => {
             console.error("Speech Recognition Error:", event.error);
-            if (event.error === 'not-allowed') {
-                alert('Please allow microphone access to use voice input.');
-            }
             if (setIsListening) setIsListening(false);
         };
 
@@ -65,61 +65,41 @@ export const VoiceInput = ({ onTranscript, isListening, setIsListening, disabled
     }, [onTranscript, setIsListening, selectedLanguage]);
 
     const toggleListening = () => {
-        if (!supported) {
-            alert('Speech recognition not supported in this browser. Please use Chrome or Edge.');
-            return;
-        }
-        
-        if (!recognitionRef.current) return;
-
+        if (!supported) return;
         if (isListening) {
-            recognitionRef.current.stop();
+            recognitionRef.current?.stop();
         } else {
             try {
-                recognitionRef.current.start();
+                recognitionRef.current?.start();
                 if (setIsListening) setIsListening(true);
             } catch (err) {
-                console.error("Failed to start recognition:", err);
+                console.error("Mic start error:", err);
             }
         }
     };
 
-    if (!supported) {
-        return (
-            <button
-                disabled
-                className="p-2 rounded-full bg-gray-600 cursor-not-allowed opacity-50"
-                title="Voice not supported"
-            >
-                <Mic className="w-4 h-4" />
-            </button>
-        );
-    }
-
     return (
         <button
             onClick={toggleListening}
-            disabled={disabled}
+            disabled={disabled || !supported}
             className={`p-2 rounded-full transition-all ${
                 isListening 
                 ? 'bg-red-500 animate-pulse text-white' 
                 : 'bg-purple-600 hover:bg-purple-700 text-white'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-            title={isListening ? "Listening... Click to stop" : `Speak in ${selectedLanguage}`}
+            } disabled:opacity-50`}
         >
             {isListening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
         </button>
     );
 };
 
-// ========== VOICE OUTPUT COMPONENT (Text to Speech) ==========
+// ========== VOICE OUTPUT COMPONENT (Updated for Desktop Fix) ==========
 export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [voices, setVoices] = useState([]);
     const [supported, setSupported] = useState(true);
     const utteranceRef = useRef(null);
 
-    // Initialize and Load Voices
     useEffect(() => {
         if (!window.speechSynthesis) {
             setSupported(false);
@@ -127,66 +107,66 @@ export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
         }
 
         const loadVoices = () => {
-            const availableVoices = window.speechSynthesis.getVoices();
+            let availableVoices = window.speechSynthesis.getVoices();
+            // Desktop par agar list khali hai toh retry mechanism
+            if (availableVoices.length === 0) {
+                availableVoices = window.speechSynthesis.getVoices();
+            }
             setVoices(availableVoices);
         };
 
+        // Browser voices asynchronously load karta hai
         loadVoices();
-        
         if (window.speechSynthesis.onvoiceschanged !== undefined) {
             window.speechSynthesis.onvoiceschanged = loadVoices;
         }
 
-        return () => {
-            window.speechSynthesis.cancel();
-        };
+        return () => window.speechSynthesis.cancel();
     }, []);
 
     const getBestVoice = (langName) => {
         const targetCode = LANGUAGE_CODES[langName];
-        
         if (!targetCode || voices.length === 0) return null;
-        
-        // 1. Try for Google/ Premium voices
-        let bestVoice = voices.find(v => v.lang === targetCode && (v.name.includes('Google') || v.name.includes('Premium')));
-        if (bestVoice) return bestVoice;
 
-        // 2. Try for exact language match
-        bestVoice = voices.find(v => v.lang === targetCode);
-        if (bestVoice) return bestVoice;
-
-        // 3. Fallback to any voice with same language prefix
-        const prefix = targetCode.split('-')[0];
-        bestVoice = voices.find(v => v.lang.startsWith(prefix));
+        // 1. Desktop ke liye best: Natural/Google voices
+        let bestVoice = voices.find(v => 
+            v.lang.toLowerCase().replace('_', '-') === targetCode.toLowerCase() && 
+            (v.name.includes('Google') || v.name.includes('Natural'))
+        );
         
-        // 4. Final fallback to first available voice
-        return bestVoice || voices[0];
+        // 2. Exact match
+        if (!bestVoice) {
+            bestVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === targetCode.toLowerCase());
+        }
+
+        // 3. Fallback: Sirf language code (hi, en, bn) match karein
+        if (!bestVoice) {
+            const prefix = targetCode.split('-')[0];
+            bestVoice = voices.find(v => v.lang.startsWith(prefix));
+        }
+
+        return bestVoice;
     };
 
     const speak = () => {
         if (!text || !supported) return;
 
-        // Stop any ongoing speech
-        window.speechSynthesis.cancel();
+        window.speechSynthesis.cancel(); // Reset any existing speech
 
         const utterance = new SpeechSynthesisUtterance(text);
         const voice = getBestVoice(language);
         
         if (voice) {
             utterance.voice = voice;
+            utterance.lang = voice.lang; // Voice ki apni lang use karein
+        } else {
+            utterance.lang = LANGUAGE_CODES[language] || 'en-US';
         }
-        
-        utterance.lang = LANGUAGE_CODES[language] || 'en-US';
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
 
+        utterance.rate = 0.95;
         utterance.onstart = () => setIsSpeaking(true);
         utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = (e) => {
-            console.error('Speech error:', e);
-            setIsSpeaking(false);
-        };
+        utterance.onerror = () => setIsSpeaking(false);
 
         utteranceRef.current = utterance;
         window.speechSynthesis.speak(utterance);
@@ -197,10 +177,9 @@ export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
         setIsSpeaking(false);
     };
 
-    // Auto-speak logic
     useEffect(() => {
         if (autoSpeak && text && voices.length > 0) {
-            const timer = setTimeout(() => speak(), 500);
+            const timer = setTimeout(() => speak(), 600);
             return () => clearTimeout(timer);
         }
     }, [text, autoSpeak, voices.length]);
@@ -212,13 +191,12 @@ export const VoiceOutput = ({ text, language, autoSpeak = false }) => {
             onClick={isSpeaking ? stop : speak}
             className={`p-2 rounded-full transition-all flex items-center gap-1 ${
                 isSpeaking 
-                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
-                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                ? 'bg-red-500/20 text-red-400' 
+                : 'bg-green-500/20 text-green-400'
             }`}
-            title={isSpeaking ? "Stop speaking" : `Listen in ${language}`}
         >
             {isSpeaking ? <Square className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
-            <span className="text-xs hidden sm:inline">{isSpeaking ? "Stop" : "Listen"}</span>
+            <span className="text-xs">{isSpeaking ? "Stop" : "Listen"}</span>
         </button>
     );
 };
