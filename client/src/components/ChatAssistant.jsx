@@ -33,20 +33,39 @@ export default function ChatAssistant({ documentContext, selectedLanguage }) {
                 })
             });
 
+            // ✅ Handle server error properly
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
             const data = await response.json();
-            const aiMsg = { role: 'ai', content: data.reply, time: new Date() };
+
+            const aiMsg = {
+                role: 'ai',
+                content: data.reply || "No response from AI",
+                time: new Date()
+            };
+
             setMessages(prev => [...prev, aiMsg]);
 
         } catch (error) {
             console.error("Chat error:", error);
-            alert("Chat failed: " + error.message);
+
+            setMessages(prev => [
+                ...prev,
+                {
+                    role: 'ai',
+                    content: "⚠️ Something went wrong. Please try again.",
+                    time: new Date()
+                }
+            ]);
         } finally {
             setLoading(false);
         }
     };
 
+    // ✅ FIXED (no duplicate send / async issue)
     const handleVoiceTranscript = (transcript) => {
-        setInput(transcript);
         sendMessage(transcript);
     };
 
@@ -70,8 +89,9 @@ export default function ChatAssistant({ documentContext, selectedLanguage }) {
                                     : 'bg-white/10 text-gray-200 rounded-bl-none'
                             }`}>
                                 <p className="leading-relaxed break-words">{msg.content}</p>
-                                {/* Voice Output Button for AI messages only */}
-                                {msg.role === 'ai' && msg.content && (
+
+                                {/* ✅ Voice Output only if available */}
+                                {msg.role === 'ai' && msg.content && VoiceOutput && (
                                     <div className="mt-2 flex justify-end">
                                         <VoiceOutput 
                                             text={msg.content} 
@@ -103,14 +123,17 @@ export default function ChatAssistant({ documentContext, selectedLanguage }) {
             {/* Input Area */}
             <div className="p-3 border-t border-white/10">
                 <div className="flex gap-2">
-                    {/* Voice Input Button */}
-                    <VoiceInput 
-                        onTranscript={handleVoiceTranscript}
-                        isListening={isListening}
-                        setIsListening={setIsListening}
-                        disabled={loading}
-                        selectedLanguage={selectedLanguage}
-                    />
+                    
+                    {/* Voice Input */}
+                    {VoiceInput && (
+                        <VoiceInput 
+                            onTranscript={handleVoiceTranscript}
+                            isListening={isListening}
+                            setIsListening={setIsListening}
+                            disabled={loading}
+                            selectedLanguage={selectedLanguage}
+                        />
+                    )}
 
                     {/* Text Input */}
                     <input
@@ -132,6 +155,7 @@ export default function ChatAssistant({ documentContext, selectedLanguage }) {
                         <Send className="w-4 h-4" />
                     </button>
                 </div>
+
                 {isListening && (
                     <p className="text-xs text-purple-400 text-center mt-2 animate-pulse">
                         🎤 Listening... Speak now
