@@ -40,10 +40,11 @@ VishwaVani AI is a multilingual AI-powered platform that enables users to transl
 | Assamese | অসমীয়া |
 | Urdu | اردو |
 | English | English |
+| Bhojpuri | भोजपुरी  |
 
 ## 🚀 Demo
 
-[![Watch Demo Video](https://img.youtube.com/vi/dQw4w9WgXcX/0.jpg)](https://youtu.be/dQw4w9WgXcX)
+[![Watch Demo Video](https://img.youtube.com/vi/dQw4w9WgXcX/0.jpg)](https://youtube.com/watch?v=a2W00ogWQp0)
 
 *Click the image above to watch the demo video*
 
